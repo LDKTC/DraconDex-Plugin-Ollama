@@ -1,171 +1,156 @@
-# DraconDex-Plugin-Template
+# DraconDex-Plugin-Ollama
 
-Starter template for building a [DraconDex](https://github.com/LDKTC/App-DraconDex)
-plugin. Use this repo as a base: fork/use-as-template it, edit the manifest and
-the files it lists, push, then install it in the app by pasting your repo's
-link.
+A chat plugin for [DraconDex](https://github.com/LDKTC/App-DraconDex) that talks
+to a **local [Ollama](https://ollama.com) server**. It docks into the Module
+Inspector slot as a session panel, so you can ask a local model about the module
+you're looking at without leaving the builder — or launch it as its own window.
 
-> Requires **DraconDex 4.2.0+**, where the feature was renamed from
-> "Github Extensions" to **Plugin** and installing became a single pasted URL.
-> Plugins written for 4.0/4.1 keep working unchanged — see
-> [Legacy: extensions](#legacy-plugins-written-before-v420) at the bottom.
+Sibling of [DraconDex-Plugin-Claude](https://github.com/LDKTC/DraconDex-Plugin-Claude)
+and [DraconDex-Plugin-Codex](https://github.com/LDKTC/DraconDex-Plugin-Codex),
+built on the same shape. Unlike those two it needs no account, no API key and no
+network — everything runs on your machine.
 
-DraconDex plugins are **not** scripts running inside the main app. Each plugin
-opens in its own window with **no access to the main app's data or
-`window.api`** — only to the SQLite table(s) it declares for itself, through
-`window.pluginApi`. For the full architecture and the honest list of what this
-does and doesn't protect against, see
-[App-DraconDex's `docs/PLUGINS.md`](https://github.com/LDKTC/App-DraconDex/blob/main/docs/PLUGINS.md).
+> **Requires DraconDex 4.4.0+.** Earlier versions only accepted `https://`
+> origins in `permissions.net` and will refuse this manifest outright with
+> `invalid net origin`. See [Connecting](#connecting) for why.
 
-## Quick start
+## Install
 
-1. Use this repo as a template (or fork it).
-2. Edit `dracondex-plugin.json` — pick your own `id`, `name`, and the tables
-   you want. The `id` becomes part of real DB table names, so choose it once
-   and don't change it after people install.
-3. Edit `index.html` / `app.js` / `style.css`, or replace them entirely — just
-   keep every file the plugin loads listed in the manifest's `files`.
-4. Check the manifest before you push: `node scripts/validate-manifest.mjs`
-   (no dependencies; the same rules the app enforces).
-5. Push, then install it from DraconDex: **Settings → Plugin → Plugins**,
-   paste your repo link, confirm the preview.
+1. `ollama serve` (it usually runs already after install), then pull a model:
+   `ollama pull llama3.2`.
+2. In DraconDex: **Settings → Plugin → Plugins**, paste
+   `https://github.com/LDKTC/DraconDex-Plugin-Ollama`, confirm the preview.
+   The preview will list the two loopback origins below — that is the network
+   access it is asking for.
+3. Open a module. A **🦙** button appears next to the Module Inspector toggle.
+4. First run lands on **Settings**: press **Fetch models**, pick one, and start
+   chatting.
+
+## Connecting
+
+Ollama listens on `http://localhost:11434` — plaintext, on loopback. DraconDex
+normally only lets a plugin declare `https://` origins, because a plaintext
+origin is a downgrade you can't see. Loopback is the one honest exception: the
+bytes never leave the machine, so there is no transport to downgrade. DraconDex
+4.4.0 allows `http://` there **when the origin names an explicit port**, so a
+grant covers one named local service rather than everything bound to loopback.
+
+This plugin declares exactly two:
+
+```json
+"net": ["http://localhost:11434", "http://127.0.0.1:11434"]
+```
+
+Requests to either go out through `pluginApi.net.*`, which runs them in the
+**main process**. That matters for more than permissions: the main process
+sends no `Origin` header, so Ollama's CORS check never engages and you do not
+have to configure `OLLAMA_ORIGINS` at all.
+
+**Pointing at anything else** — a different port, another machine, a reverse
+proxy — is still possible, but those requests fall back to the plugin page's own
+`fetch()` and the browser applies CORS. The page is loaded from a file, so the
+origin it sends is the literal `null`, which Ollama's default allowlist does not
+include. Start Ollama with `OLLAMA_ORIGINS` set to include `null` (or `*`) if
+you want that. Settings says so in place when your server URL is one of these.
+
+## What it can do
+
+- **Streaming replies** from `/api/chat`, token by token.
+- **Thinking models.** Set **Thinking** to `On` for `deepseek-r1`, `qwen3`,
+  `gpt-oss` and friends; the reasoning arrives on its own channel and renders in
+  a collapsible block above the answer. The named levels (`low`/`medium`/`high`)
+  are understood by fewer models than plain `On`. A model with no thinking mode
+  answers with an error rather than ignoring the setting, which is why the
+  default is **Off**.
+- **Model picker** backed by `/api/tags`, so the list is what you have actually
+  pulled — not a list this plugin guessed. **Test** hits `/api/version` to tell
+  "server is down" apart from "model isn't pulled".
+- **Conversations** persisted per module. Opening the panel on a module returns
+  to that module's conversation.
+- **Generation settings** — max tokens (`num_predict`), temperature and context
+  size (`num_ctx`). All blank by default, so Ollama and the model's own
+  Modelfile keep their defaults unless you say otherwise.
+- Token counts per reply, from `prompt_eval_count` / `eval_count`.
+
+It does **not** pull models for you. `ollama pull` stays a thing you run
+yourself — an install that can download several GB in the background because a
+dropdown changed is not a good surprise.
+
+## Where your data goes
+
+Nowhere. The conversation goes to your Ollama server and back; there is no
+account, no key and no third party. Prompts and replies are stored in this
+plugin's own SQLite tables inside DraconDex (`plg_ollama_chat_session`,
+`plg_ollama_chat_message`, `plg_ollama_chat_config`) — readable by this plugin
+and nothing else, and deleted with it when you uninstall.
+
+Being plain about the limits, the same way the app's own
+[`docs/PLUGINS.md`](https://github.com/LDKTC/App-DraconDex/blob/main/docs/PLUGINS.md) is:
+the rows are not encrypted, and a net grant lets this plugin reach the declared
+origins and read what comes back. That's a real capability, which is why the
+install preview shows it before you confirm.
+
+## The manifest
+
+```json
+{
+  "id": "ollama_chat",
+  "entry": "index.html",
+  "panels": [{ "id": "chat", "title": "Ollama", "icon": "🦙", "entry": "panel.html" }],
+  "permissions": {
+    "net": ["http://localhost:11434", "http://127.0.0.1:11434"],
+    "context": ["module"]
+  }
+}
+```
+
+`permissions.context: ["module"]` is what lets the panel ask the host which
+module is open. The host answers `null` if it wasn't granted, and the plugin
+works either way.
 
 ## Structure
 
 | File | Purpose |
 | --- | --- |
-| `dracondex-plugin.json` | Manifest: id, name, version, entry point, files, and table schema. |
-| `index.html` | Entry point (must be listed in `files` and match `entry`). |
-| `app.js` | Plugin logic. Talks to its own table via `window.pluginApi.table.*`. |
-| `style.css` | Optional styling. Mirrors the app's dark theme tokens. |
-| `scripts/validate-manifest.mjs` | Local manifest check. Not shipped — it isn't in `files`. |
+| `dracondex-plugin.json` | Manifest: id, panel, net origins, table schema. |
+| `index.html` / `app.js` | Standalone-window entry. Draws its own title bar — plugin windows are frameless. |
+| `panel.html` / `panel.js` | Docked session-panel entry. No title bar (the host draws it); asks the host for module context. |
+| `src/provider.js` | Ollama transport: `/api/chat` NDJSON streaming, `/api/tags`, `/api/version`, error decoding. |
+| `src/store.js` | The three tables, via `window.pluginApi.table.*`. |
+| `src/chat.js` | Session/transcript controller. No DOM. |
+| `src/ui.js` | Rendering: chat, history, settings. |
+| `style.css` | Both entries. Written for the 290px panel, relaxed for the window. |
+| `scripts/validate-manifest.mjs` | Local manifest check. Not shipped — not in `files`. |
+| `test/provider.test.mjs` | Drives `provider.js` against canned NDJSON. Not shipped. |
 
-Only the paths listed in `files` are ever downloaded, so repo-side extras
-(README, scripts, CI, tests) cost the user nothing.
+Only paths listed in `files` are ever downloaded, so the README, scripts, tests
+and CI cost an installing user nothing.
 
-## Manifest (`dracondex-plugin.json`)
+### A constraint worth knowing before you edit this
 
-```json
-{
-  "id": "example_plugin",
-  "name": "Example Plugin",
-  "version": "0.1.0",
-  "entry": "index.html",
-  "files": ["index.html", "app.js", "style.css"],
-  "tables": [
-    {
-      "name": "notes",
-      "columns": [
-        { "name": "title", "type": "TEXT" },
-        { "name": "rating", "type": "INTEGER" }
-      ]
-    }
-  ]
-}
+**The panel is reloaded whenever the main window re-renders** — editing a tag is
+enough — and an in-flight stream dies with it. That is why every piece of state
+round-trips through the plugin's own tables, and why the user's message is
+persisted *before* the request goes out. Don't move state into a module-level
+variable and expect it to survive.
+
+The panel button also only appears while a module is open, only one panel shows
+at a time, and switching modules closes it.
+
+## Developing
+
+```sh
+node scripts/validate-manifest.mjs     # the rules the app enforces on install
+for f in app.js panel.js src/*.js; do node --check "$f"; done
+node --test test/*.test.mjs
 ```
 
-Rules the app enforces on install (`validateManifest` in App-DraconDex's
-`src/db/plugin-manifest.js`):
+No dependencies and no build step — the app downloads these files as they are.
+CI runs the same three commands.
 
-- `id` — `^[a-z0-9_]{1,20}$`. Becomes part of the plugin's real DB table
-  names, so pick it deliberately. Two plugins with the same `id` cannot be
-  installed side by side (`already_installed`).
-- `name` — string, max 80 characters.
-- `version` — optional string, max 40 characters.
-- `entry` — an HTML file, and it must also appear in `files`.
-- `files` — 1 to 30 relative paths (no `..`, no leading `/`, no `\`), each
-  fetched individually and capped at 2 MB. Subdirectories are fine
-  (`ui/panel.js`). The app does not crawl your repo — only files listed here
-  are downloaded.
-- `tables` — up to 10 tables, each with 1 to 25 columns.
-  - table `name`: `^[a-z0-9_]{1,20}$`, and `id`+`name` together must stay
-    within 41 characters (the real table is `plg_<id>_<name>`).
-  - column `name`: `^[a-z][a-z0-9_]{0,29}$`, and cannot be `id`, `rowid`,
-    `oid`, or `_rowid_`.
-  - column `type`: `TEXT`, `INTEGER`, or `REAL` only — no `DEFAULT`, `CHECK`,
-    or `FOREIGN KEY` support.
-
-Every table also gets an implicit `id INTEGER PRIMARY KEY AUTOINCREMENT` that
-you don't declare and can't override; it's the `id` you pass to `update` and
-`delete`.
-
-## The `window.pluginApi` surface
-
-Inside a plugin window there is **no `window.api`**, no Node, and no
-filesystem — only:
-
-```js
-await window.pluginApi.table.getSchema(localName)      // { columns: [{ name, type }, …] }
-await window.pluginApi.table.query(localName, filter)  // rows, newest id first
-await window.pluginApi.table.insert(localName, row)    // { id }
-await window.pluginApi.table.update(localName, id, row)// { changes }
-await window.pluginApi.table.delete(localName, id)     // { changes }
-```
-
-- `localName` is the `name` you declared under `tables` (e.g. `"notes"`), not
-  the internal `plg_*` table name.
-- `filter` is an object of exact-match column equalities ANDed together;
-  `{}` returns everything. There is no operator syntax, no raw SQL, and no
-  pagination — filter and sort the rest in JS.
-- Keys in `filter` and `row` must be declared columns, or the call rejects with
-  `unknown column: …`.
-- Every call is scoped to the tables *this* plugin declared — ownership is
-  resolved from the calling window itself, not from anything the page sends,
-  so there is no way to reach another plugin's data or the main app's data.
-- Calls reject with `not an owned table` if `localName` isn't one of yours.
-
-## Writing the window itself
-
-Plugin windows are created frameless (`frame: false`, 900×650, min 480×360,
-dark `#050506` background). Practical consequences:
-
-- **Draw your own title bar.** Give it `-webkit-app-region: drag` so the
-  window can be moved, and `-webkit-app-region: no-drag` on every button
-  inside it. `index.html` + `style.css` here show the minimum version.
-- **Give the user a way out** — `window.close()` works; there is no OS close
-  button. (The app's plugin list also has a **Stop** button.)
-- **The app's stylesheets are not injected.** Ship whatever CSS you need in
-  your own `files`.
-- `window.prompt()` is unsupported in Electron renderers — use your own UI.
-- Nothing sanitizes your rendering: treat stored rows as data and use
-  `textContent`, not `innerHTML`.
-
-## Installing your plugin for testing
-
-In the DraconDex app: **Settings → Plugin → Plugins**, paste your repo link
-and confirm the preview. Accepted link shapes include:
-
-| Shape | Example |
-| --- | --- |
-| HTTPS + `.git` | `https://github.com/acme/my-plugin.git` |
-| Plain HTTPS | `https://github.com/acme/my-plugin` |
-| SSH / scp | `git@github.com:acme/my-plugin.git` |
-| No scheme | `github.com/acme/my-plugin` |
-| Shorthand | `acme/my-plugin` (assumed GitHub) |
-| Explicit branch | `https://github.com/acme/my-plugin/tree/dev` |
-| GitLab | `https://gitlab.com/acme/team/my-plugin.git` |
-
-Only **github.com** and **gitlab.com** are supported — other hosts are
-rejected with `unsupported_host`. With no branch in the link the app tries
-`main`, then `master`. The manifest is looked up as `dracondex-plugin.json`
-first, then `dracondex-extension.json`.
-
-The preview shows the name/version/id, the files it will download, and the
-tables it will create — it touches neither disk nor DB. Installing re-fetches
-and re-validates everything from the URL alone.
-
-Reinstalling after a change means **uninstall first** (same `id` can't install
-twice), and uninstalling **permanently deletes that plugin's files and
-tables** — so don't develop against data you care about.
-
-## Legacy: plugins written before v4.2.0
-
-Nothing to change. `window.extApi` still exists as an alias for the same
-object, and `dracondex-extension.json` is still found as a fallback manifest
-name. Existing installs were migrated in place (`ext_*` tables → `plg_*`,
-`extensions/` → `plugins/`). New plugins should use the `pluginApi` /
-`dracondex-plugin.json` names; `app.js` here falls back to `extApi` only so
-the same page also runs on 4.0/4.1.
+Reinstalling after a change means **uninstall first** (the same `id` can't
+install twice), and uninstalling **permanently deletes this plugin's tables** —
+so don't develop against conversations you want to keep.
 
 ## License
 
