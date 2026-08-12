@@ -13,6 +13,12 @@ network — everything runs on your machine.
 > **Requires DraconDex 4.4.0+.** Earlier versions only accepted `https://`
 > origins in `permissions.net` and will refuse this manifest outright with
 > `invalid net origin`. See [Connecting](#connecting) for why.
+> **DraconDex 4.8.0+** additionally auto-installs
+> [AI Native](https://github.com/LDKTC/DraconDex-Plugin-Native) the first time
+> this plugin is installed (see [App context](#app-context-ai-native) below).
+> On 4.4.0–4.7.x this plugin still installs and works exactly the same — the
+> app just doesn't know to look at the manifest's `dependencies` field yet, so
+> nothing else gets pulled in automatically.
 
 ## Install
 
@@ -76,6 +82,27 @@ It does **not** pull models for you. `ollama pull` stays a thing you run
 yourself — an install that can download several GB in the background because a
 dropdown changed is not a good surprise.
 
+## App context (AI Native)
+
+This plugin declares
+[DraconDex-Plugin-Native](https://github.com/LDKTC/DraconDex-Plugin-Native)
+("AI Native") as a manifest `dependencies` entry, so installing this plugin
+auto-installs that one too (DraconDex 4.8.0+). AI Native publishes
+`catalog.json` — a small public file describing DraconDex's features and what
+a plugin can/can't do.
+
+A plugin can't read another plugin's table or files even once both are
+installed side by side, so this plugin doesn't reach into AI Native directly —
+instead, on boot it fetches `catalog.json` straight from that repo
+(`https://raw.githubusercontent.com`, declared in `permissions.net`,
+independent of the two Ollama origins above) and folds a short summary into
+the system prompt sent with every message, ahead of whatever you wrote in
+Settings. Your own system prompt is never edited or replaced, just prefixed
+for the outgoing request. No internet access to that host, or an older
+DraconDex with no `pluginApi.net`? Chat still works fine — just without the
+app-context preamble, same as everything else in this plugin that touches the
+network.
+
 ## Where your data goes
 
 Nowhere. The conversation goes to your Ollama server and back; there is no
@@ -98,9 +125,10 @@ install preview shows it before you confirm.
   "entry": "index.html",
   "panels": [{ "id": "chat", "title": "Ollama", "icon": "🦙", "entry": "panel.html" }],
   "permissions": {
-    "net": ["http://localhost:11434", "http://127.0.0.1:11434"],
+    "net": ["http://localhost:11434", "http://127.0.0.1:11434", "https://raw.githubusercontent.com"],
     "context": ["module"]
-  }
+  },
+  "dependencies": ["https://github.com/LDKTC/DraconDex-Plugin-Native"]
 }
 ```
 
@@ -116,12 +144,14 @@ works either way.
 | `index.html` / `app.js` | Standalone-window entry. Draws its own title bar — plugin windows are frameless. |
 | `panel.html` / `panel.js` | Docked session-panel entry. No title bar (the host draws it); asks the host for module context. |
 | `src/provider.js` | Ollama transport: `/api/chat` NDJSON streaming, `/api/tags`, `/api/version`, error decoding. |
+| `src/catalog.js` | Fetches/caches AI Native's `catalog.json`; composes the app-context preamble onto the system prompt. Independent of `provider.js` — different origin, own `pluginApi.net` call. |
 | `src/store.js` | The three tables, via `window.pluginApi.table.*`. |
 | `src/chat.js` | Session/transcript controller. No DOM. |
 | `src/ui.js` | Rendering: chat, history, settings. |
 | `style.css` | Both entries. Written for the 290px panel, relaxed for the window. |
 | `scripts/validate-manifest.mjs` | Local manifest check. Not shipped — not in `files`. |
 | `test/provider.test.mjs` | Drives `provider.js` against canned NDJSON. Not shipped. |
+| `test/catalog.test.mjs` | Drives `catalog.js` against a fake `pluginApi.net`/`Store`/page `fetch`. Not shipped. |
 
 Only paths listed in `files` are ever downloaded, so the README, scripts, tests
 and CI cost an installing user nothing.
