@@ -11,6 +11,7 @@
     "style.css",
     "src/store.js",
     "src/provider.js",
+    "src/catalog.js",
     "src/chat.js",
     "src/ui.js"
   ],
@@ -18,9 +19,10 @@
     { "id": "chat", "title": "Ollama", "icon": "🦙", "entry": "panel.html" }
   ],
   "permissions": {
-    "net": ["http://localhost:11434", "http://127.0.0.1:11434"],
+    "net": ["http://localhost:11434", "http://127.0.0.1:11434", "https://raw.githubusercontent.com"],
     "context": ["module"]
   },
+  "dependencies": ["https://github.com/LDKTC/DraconDex-Plugin-Native"],
   "tables": [
     {
       "name": "session",
