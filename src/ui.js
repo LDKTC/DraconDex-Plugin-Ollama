@@ -313,6 +313,12 @@ function buildSettings() {
 
   if (Chat.notice) wrap.appendChild(el('div', 'notice', Chat.notice));
 
+  wrap.appendChild(el('div', 'pane-label', 'Connection'));
+  wrap.appendChild(el('div', 'notice',
+    'Ollama has no cloud API and no account — this plugin always talks to the Ollama CLI\'s own local '
+    + 'server (`ollama serve`) on this machine. Unlike the Claude and Codex siblings, there is no separate '
+    + 'mode to pick: the Ollama CLI is the only way this plugin ever connects.'));
+
   // No credentials section: Ollama runs on this machine and authenticates
   // nothing, so "connected" is only ever a reachable server plus a pulled model.
   wrap.appendChild(buildEndpointSection(s));

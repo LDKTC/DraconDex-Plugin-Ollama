@@ -34,6 +34,14 @@ network — everything runs on your machine.
 
 ## Connecting
 
+**Local CLI — the only mode.** The Claude and Codex siblings offer an API key,
+an OAuth sign-in, and a Local CLI mode that accepts a token pasted from their
+provider's CLI. Ollama has none of that to choose between: there is no account
+and no key, and every request already goes straight to the Ollama CLI's own
+local server. `ollama serve` (usually already running) and `ollama pull` are
+the entire "CLI" story for this plugin — nothing to sign in to, nothing to
+paste.
+
 Ollama listens on `http://localhost:11434` — plaintext, on loopback. DraconDex
 normally only lets a plugin declare `https://` origins, because a plaintext
 origin is a downgrade you can't see. Loopback is the one honest exception: the
