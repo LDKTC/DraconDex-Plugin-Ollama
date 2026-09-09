@@ -22,7 +22,7 @@
     "net": ["http://localhost:11434", "http://127.0.0.1:11434", "https://raw.githubusercontent.com"],
     "context": ["module"]
   },
-  "dependencies": ["https://github.com/LDKTC/DraconDex-Plugin-Native"],
+  "dependencies": ["https://github.com/ZYDRAXYL/DraconDex-PGI-AINative"],
   "tables": [
     {
       "name": "session",

@@ -1,12 +1,12 @@
-# DraconDex-Plugin-Ollama
+# DraconDex-PGI-Ollama
 
-A chat plugin for [DraconDex](https://github.com/LDKTC/App-DraconDex) that talks
+A chat plugin for [DraconDex](https://github.com/ZYDRAXYL/DraconDex-APP) that talks
 to a **local [Ollama](https://ollama.com) server**. It docks into the Module
 Inspector slot as a session panel, so you can ask a local model about the module
 you're looking at without leaving the builder — or launch it as its own window.
 
-Sibling of [DraconDex-Plugin-Claude](https://github.com/LDKTC/DraconDex-Plugin-Claude)
-and [DraconDex-Plugin-Codex](https://github.com/LDKTC/DraconDex-Plugin-Codex),
+Sibling of [DraconDex-PGI-Claude](https://github.com/ZYDRAXYL/DraconDex-PGI-Claude)
+and [DraconDex-PGI-Codex](https://github.com/ZYDRAXYL/DraconDex-PGI-Codex),
 built on the same shape. Unlike those two it needs no account, no API key and no
 network — everything runs on your machine.
 
@@ -14,7 +14,7 @@ network — everything runs on your machine.
 > origins in `permissions.net` and will refuse this manifest outright with
 > `invalid net origin`. See [Connecting](#connecting) for why.
 > **DraconDex 4.8.0+** additionally auto-installs
-> [AI Native](https://github.com/LDKTC/DraconDex-Plugin-Native) the first time
+> [AI Native](https://github.com/ZYDRAXYL/DraconDex-PGI-AINative) the first time
 > this plugin is installed (see [App context](#app-context-ai-native) below).
 > On 4.4.0–4.7.x this plugin still installs and works exactly the same — the
 > app just doesn't know to look at the manifest's `dependencies` field yet, so
@@ -25,7 +25,7 @@ network — everything runs on your machine.
 1. `ollama serve` (it usually runs already after install), then pull a model:
    `ollama pull llama3.2`.
 2. In DraconDex: **Settings → Plugin → Plugins**, paste
-   `https://github.com/LDKTC/DraconDex-Plugin-Ollama`, confirm the preview.
+   `https://github.com/ZYDRAXYL/DraconDex-PGI-Ollama`, confirm the preview.
    The preview will list the two loopback origins below — that is the network
    access it is asking for.
 3. Open a module. A **🦙** button appears next to the Module Inspector toggle.
@@ -93,7 +93,7 @@ dropdown changed is not a good surprise.
 ## App context (AI Native)
 
 This plugin declares
-[DraconDex-Plugin-Native](https://github.com/LDKTC/DraconDex-Plugin-Native)
+[DraconDex-PGI-AINative](https://github.com/ZYDRAXYL/DraconDex-PGI-AINative)
 ("AI Native") as a manifest `dependencies` entry, so installing this plugin
 auto-installs that one too (DraconDex 4.8.0+). AI Native publishes
 `catalog.json` — a small public file describing DraconDex's features and what
@@ -120,7 +120,7 @@ plugin's own SQLite tables inside DraconDex (`plg_ollama_chat_session`,
 and nothing else, and deleted with it when you uninstall.
 
 Being plain about the limits, the same way the app's own
-[`docs/PLUGINS.md`](https://github.com/LDKTC/App-DraconDex/blob/main/docs/PLUGINS.md) is:
+[`docs/PLUGINS.md`](https://github.com/ZYDRAXYL/DraconDex-APP/blob/main/docs/PLUGINS.md) is:
 the rows are not encrypted, and a net grant lets this plugin reach the declared
 origins and read what comes back. That's a real capability, which is why the
 install preview shows it before you confirm.
@@ -136,7 +136,7 @@ install preview shows it before you confirm.
     "net": ["http://localhost:11434", "http://127.0.0.1:11434", "https://raw.githubusercontent.com"],
     "context": ["module"]
   },
-  "dependencies": ["https://github.com/LDKTC/DraconDex-Plugin-Native"]
+  "dependencies": ["https://github.com/ZYDRAXYL/DraconDex-PGI-AINative"]
 }
 ```
 
