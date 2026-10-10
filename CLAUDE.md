@@ -1,7 +1,7 @@
 # DraconDex-PGI-Ollama
 
 A chat plugin for [DraconDex](https://github.com/ZYDRAXYL/DraconDex-APP) that
-talks to a **local Ollama server**, docked in place of the Module Inspector or
+talks to a **local Ollama server**, in DraconDex 5's side panel or
 run as a standalone window. Sibling of
 [DraconDex-PGI-Claude](https://github.com/ZYDRAXYL/DraconDex-PGI-Claude) and
 [DraconDex-PGI-Codex](https://github.com/ZYDRAXYL/DraconDex-PGI-Codex), same
@@ -20,7 +20,7 @@ chrome:
 | --- | --- |
 | `dracondex-plugin.json` | Manifest: id `ollama_chat`, panel, net origins, table schema. |
 | `index.html` + `app.js` | Standalone-window entry (draws its own frameless title bar). |
-| `panel.html` + `panel.js` | Docked-panel entry; asks the host for module context. |
+| `panel.html` + `panel.js` | Side-panel entry; asks the host for module context and follows the pushes v5 sends on every page change (`setModuleContext` in `src/chat.js` — never mid-reply). |
 | `src/provider.js` | Ollama transport: `/api/chat` NDJSON streaming, `/api/tags`, `/api/version`, error decoding. |
 | `src/catalog.js` | Fetches/caches AI Native's `catalog.json`; composes the app-context preamble onto the system prompt. Independent of `provider.js` — different origin, own `pluginApi.net` call. |
 | `src/store.js` | The three tables, via `window.pluginApi.table.*`. |
@@ -34,9 +34,9 @@ README, scripts, and tests cost an installing user nothing.
 
 ## Hard constraints — read before editing panel/state code
 
-- **A docked panel is reloaded whenever DraconDex re-renders its pane** —
-  editing a tag on the module is enough to trigger it, and an in-flight
-  stream dies with it. Nothing may live only in a JS variable: the user's
+- **The panel can go away at any moment** — DraconDex 5's side panel keeps it
+  open across page changes but destroys it on close or quit (4.x hosts also
+  reloaded it on every pane re-render), and an in-flight stream dies with it. Nothing may live only in a JS variable: the user's
   message is persisted *before* the request goes out, every reply is written
   as soon as the stream ends, and the panel rebuilds itself from the tables
   on every load.
@@ -63,7 +63,8 @@ README, scripts, and tests cost an installing user nothing.
 ## Commands
 
 ```sh
-node scripts/validate-manifest.mjs     # same rules the app enforces on install
+node tools/validate-manifest.mjs       # the app's own rules (vendored), first error first
+node tools/plugin-contract.mjs         # the vendored copy matches plugin-contract.lock.json
 for f in app.js panel.js src/*.js; do node --check "$f"; done
 node --test test/*.test.mjs
 ```

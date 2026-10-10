@@ -15,7 +15,8 @@
 //      token counts.
 //   3. The endpoint is plaintext loopback. DraconDex only allows that for
 //      `http://` on localhost/127.0.0.1 WITH an explicit port (see
-//      normalizeNetOrigin in the app's src/db/plugin-manifest.js), which is
+//      normalizeNetOrigin in DraconDex-EXE's electron/src/db/plugin-manifest.js —
+//      vendored here as tools/plugin-manifest.cjs), which is
 //      why this plugin needs DraconDex 4.4.0+.
 //
 // See README.md §Connecting for what happens when the user points this at an
