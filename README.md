@@ -1,9 +1,10 @@
 # DraconDex-PGI-Ollama
 
 A chat plugin for [DraconDex](https://github.com/ZYDRAXYL/DraconDex-APP) that talks
-to a **local [Ollama](https://ollama.com) server**. It docks into the Module
-Inspector slot as a session panel, so you can ask a local model about the module
-you're looking at without leaving the builder — or launch it as its own window.
+to a **local [Ollama](https://ollama.com) server**. It opens in DraconDex 5's
+side panel, beside the page, so you can ask a local model about the module
+you're looking at without leaving it — the panel follows you from module to
+module — or launch it as its own window.
 
 Sibling of [DraconDex-PGI-Claude](https://github.com/ZYDRAXYL/DraconDex-PGI-Claude)
 and [DraconDex-PGI-Codex](https://github.com/ZYDRAXYL/DraconDex-PGI-Codex),
@@ -28,7 +29,8 @@ network — everything runs on your machine.
    `https://github.com/ZYDRAXYL/DraconDex-PGI-Ollama`, confirm the preview.
    The preview will list the two loopback origins below — that is the network
    access it is asking for.
-3. Open a module. A **🦙** button appears next to the Module Inspector toggle.
+3. Open a page. A **🦙** button appears on its address row; it opens the chat in
+   the side panel (on 4.x it replaced the Module Inspector dock).
 4. First run lands on **Settings**: press **Fetch models**, pick one, and start
    chatting.
 
@@ -150,14 +152,16 @@ works either way.
 | --- | --- |
 | `dracondex-plugin.json` | Manifest: id, panel, net origins, table schema. |
 | `index.html` / `app.js` | Standalone-window entry. Draws its own title bar — plugin windows are frameless. |
-| `panel.html` / `panel.js` | Docked session-panel entry. No title bar (the host draws it); asks the host for module context. |
+| `panel.html` / `panel.js` | Side-panel session entry. No title bar (the host draws it); asks the host for module context. |
 | `src/provider.js` | Ollama transport: `/api/chat` NDJSON streaming, `/api/tags`, `/api/version`, error decoding. |
 | `src/catalog.js` | Fetches/caches AI Native's `catalog.json`; composes the app-context preamble onto the system prompt. Independent of `provider.js` — different origin, own `pluginApi.net` call. |
 | `src/store.js` | The three tables, via `window.pluginApi.table.*`. |
 | `src/chat.js` | Session/transcript controller. No DOM. |
 | `src/ui.js` | Rendering: chat, history, settings. |
 | `style.css` | Both entries. Written for the 290px panel, relaxed for the window. |
-| `scripts/validate-manifest.mjs` | Local manifest check. Not shipped — not in `files`. |
+| `tools/validate-manifest.mjs` | Local manifest check running the app's own `validateManifest()`. Not shipped — not in `files` |
+| `tools/plugin-manifest.cjs` + `plugin-contract.lock.json` | That function: DraconDex-EXE's `plugin-manifest.js`, vendored byte-identical at a pinned release. Never hand-edit; move the pin with `node tools/plugin-contract.mjs --vendor --ref vX.Y.Z`. |
+| `tools/plugin-contract.mjs` | Checks the vendored copy; `--upstream` says whether DraconDex moved past the pin. |
 | `test/provider.test.mjs` | Drives `provider.js` against canned NDJSON. Not shipped. |
 | `test/catalog.test.mjs` | Drives `catalog.js` against a fake `pluginApi.net`/`Store`/page `fetch`. Not shipped. |
 
@@ -166,8 +170,9 @@ and CI cost an installing user nothing.
 
 ### A constraint worth knowing before you edit this
 
-**The panel is reloaded whenever the main window re-renders** — editing a tag is
-enough — and an in-flight stream dies with it. That is why every piece of state
+**The panel can go away at any moment** — DraconDex 5 keeps it open across page
+changes but destroys it when the side panel closes or the app quits (4.x hosts
+also reloaded it on every re-render) — and an in-flight stream dies with it. That is why every piece of state
 round-trips through the plugin's own tables, and why the user's message is
 persisted *before* the request goes out. Don't move state into a module-level
 variable and expect it to survive.
@@ -178,7 +183,8 @@ at a time, and switching modules closes it.
 ## Developing
 
 ```sh
-node scripts/validate-manifest.mjs     # the rules the app enforces on install
+node tools/validate-manifest.mjs       # the app's own rules (vendored), first error first
+node tools/plugin-contract.mjs         # the vendored copy matches plugin-contract.lock.json
 for f in app.js panel.js src/*.js; do node --check "$f"; done
 node --test test/*.test.mjs
 ```
